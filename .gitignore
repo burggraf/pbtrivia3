@@ -1,4 +1,8 @@
 logs/
 /pocketbase
 /questions.tsv
+.pocketbase.pid
+pb_data/
+pb_public/
+pb_hooks/
 

@@ -19,15 +19,16 @@ echo "🌐 Starting PocketBase server on http://0.0.0.0:8090..."
 ./pocketbase serve --dev --http 0.0.0.0:8090 &
 
 # Save the PID
+echo "💾 Saving PocketBase PID to .pocketbase.pid..."
 PB_PID=$!
 echo $PB_PID > .pocketbase.pid
 
 # Wait a moment for the server to start
-sleep 2
+sleep 4
 
 # Load questions data
 echo "📦 Loading questions data..."
-node load-questions.js
+node scripts/load-questions.js
 
 echo ""
 echo "✅ PocketBase initialized successfully!"

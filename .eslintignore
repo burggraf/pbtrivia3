@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+*.min.js
+*.log
+.env*
+coverage/
+.nyc_output/
+junit.xml
+*.tmp
+*.temp
+.DS_Store
+.vscode/
+.idea/

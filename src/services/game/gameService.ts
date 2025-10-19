@@ -1,43 +1,31 @@
 import { pb } from '@/services/pocketbase/client'
-import type { Game, GameCreationConfig, Round, Question, RoundQuestion } from '@/types'
+import type { Game, CreateGameData, Round, Question, RoundQuestion } from '@/types'
 
 class GameService {
   /**
    * Create a new trivia game
    */
-  async createGame(config: GameCreationConfig): Promise<Game> {
+  async createGame(config: CreateGameData): Promise<Game> {
     try {
+      // Validate game data
+      this.validateCreateGameData(config);
+
       // Create the game record
       const gameData = {
-        title: config.title,
-        description: config.description || '',
+        name: config.name,
         host_id: config.host_id,
-        status: config.status,
-        game_code: this.generateGameCode(),
-        category_ids: config.category_ids,
-        max_teams: config.max_teams,
-        team_size: config.team_size,
-        round_count: config.round_count,
-        questions_per_round: config.questions_per_round,
-        time_per_question: config.time_per_question,
-        point_values: config.point_values,
-        difficulty: config.difficulty,
-        enable_powerups: config.enable_powerups,
-        enable_sound_effects: config.enable_sound_effects,
-        show_leaderboard: config.show_leaderboard,
-        allow_team_names: config.allow_team_names,
-        current_round: 1,
-        current_question: 1,
-        is_paused: false,
-        created_at: config.created_at,
-        updated_at: config.updated_at,
+        code: this.generateGameCode(),
+        status: 'setup' as const,
+        min_team_size: config.min_team_size || 1,
+        max_team_size: config.max_team_size || 6,
+        time_limit_enabled: config.time_limit_enabled || false,
+        time_limit_seconds: config.time_limit_enabled ? config.time_limit_seconds : undefined,
+        sound_effects_enabled: config.sound_effects_enabled !== false, // Default to true
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
 
       const game = await pb.collection('games').create(gameData) as unknown as Game
-
-      // Generate questions for the game
-      await this.generateGameQuestions(game.id, config)
-
       return game
     } catch (error) {
       console.error('Failed to create game:', error)
@@ -300,9 +288,31 @@ class GameService {
   }
 
   /**
-   * Generate a unique game code
+   * Validate game creation data
    */
-  private generateGameCode(): string {
+  private validateCreateGameData(config: CreateGameData): void {
+    if (!config.name || config.name.trim().length === 0) {
+      throw new Error('Game name is required');
+    }
+
+    const minTeamSize = config.min_team_size || 1;
+    const maxTeamSize = config.max_team_size || 6;
+
+    if (minTeamSize > maxTeamSize) {
+      throw new Error('Minimum team size cannot be greater than maximum');
+    }
+
+    if (config.time_limit_enabled && config.time_limit_seconds) {
+      if (config.time_limit_seconds < 10 || config.time_limit_seconds > 300) {
+        throw new Error('Time limit must be between 10 and 300 seconds');
+      }
+    }
+  }
+
+  /**
+   * Generate a unique game code (public for testing)
+   */
+  generateGameCode(): string {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let code = ''
 
@@ -312,6 +322,15 @@ class GameService {
     }
 
     return code
+  }
+
+  /**
+   * Validate game code format
+   */
+  validateGameCode(code: string): boolean {
+    // Must be exactly 6 characters, uppercase letters and numbers only
+    const codeRegex = /^[A-Z0-9]{6}$/;
+    return codeRegex.test(code);
   }
 
   /**

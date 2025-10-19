@@ -1,0 +1,357 @@
+# Multi-User Trivia Party Application
+
+## Overview
+
+A real-time multi-user trivia application designed for pub/restaurant venues where players use mobile phones while questions and scores display on TV screens. The host controls game flow, and teams compete through multiple rounds of trivia questions.
+
+## User Roles
+
+- **Host**: Controls game setup, flow, and progression
+- **Player**: Joins teams, views questions, submits answers
+
+## Game Setup (Pre-Event)
+
+### Game Creation & Management
+
+- Hosts can create, edit, and delete their own games.
+- Each game must have a name.
+
+### Round Configuration
+
+- Hosts can add or remove rounds from a game **before the game starts** (i.e., before clicking the "Start Game" button).
+- Each round has:
+  - A title.
+  - A specified number of questions.
+  - A selection of one or more categories (from the 10 available) to draw questions from.
+
+### Available Categories
+
+- Arts & Literature
+- Entertainment
+- Food and Drink
+- General Knowledge
+- Geography
+- History
+- Pop Culture
+- Science
+- Sports
+- Technology
+
+### Question Database
+
+Existing `questions` table with 61,000+ questions:
+
+```sql
+Table "public.questions"
+Column     | Type                     | Collation | Nullable | Default
+-----------+--------------------------+-----------+----------+---------
+id         | uuid                     |           | not null |
+category   | text                     |           | not null |
+question   | text                     |           | not null |
+a          | text                     |           |          | -- CORRECT ANSWER
+b          | text                     |           |          | -- Wrong answer
+c          | text                     |           |          | -- Wrong answer
+d          | text                     |           |          | -- Wrong answer
+metadata   | jsonb                    |           |          |
+created_at | timestamp with time zone |           |          |
+updated_at | timestamp with time zone |           |          |
+
+Indexes:
+  "questions_pkey" PRIMARY KEY, btree (id)
+  "idx_questions_category" btree (category)
+  "idx_questions_created_at" btree (created_at DESC)
+
+Policies:
+  "Authenticated users can read questions" FOR SELECT
+  "Authenticated users can view questions" FOR SELECT TO authenticated
+```
+
+**IMPORTANT**: Column "a" contains the correct answer; columns "b", "c", "d" contain incorrect answers.
+
+### Question Selection & Pre-Game Setup
+
+- Questions are randomly added to rounds based on the round's configured number of questions and categories.
+- The host can preview all questions for each round before starting the game.
+- If the host is not satisfied with a question, they can click a "replace" button to swap it with a new random question from the same categories.
+- The host can also remove questions or reorder them within a round.
+- The host saves the final game configuration and clicks "Start Game" to begin.
+- **After the game starts**, the host cannot remove or reorder questions. Only the "replace next question" feature is available (see During-Game Question Replacement below).
+
+## Game Play
+
+### Player Entry
+
+Players join via:
+
+- Game code provided by host
+- QR code scan displayed on TV screens
+
+### Game Start & Player Join Window
+
+- A game "starts" when the host clicks the "Start Game" button after finalizing round/question configuration.
+- Players can join teams **until the game starts**. After the host clicks "Start Game", no new players can join.
+- Players can join during the setup phase while the host is still configuring rounds and questions.
+
+### Team Management
+
+- **Any player can create a new team** at any time before the game starts.
+- Once a team is created, other players can either:
+  - Join an existing team (if it hasn't reached max players)
+  - Create a new team
+- **Team visibility**: Players see all existing teams with current player counts before choosing to join or create.
+- **Full team handling**: If a player tries to join a team that's full, show an error and prevent the join.
+- Teams support multiple players (between the min/max configured by the host).
+- **Answer locking**: First submitted answer per team is final (no changes allowed).
+- Teams must coordinate on single answer before submission.
+
+### Game Flow (Host-Controlled)
+
+The game process is a series of "slides" the host progresses through:
+
+- **Game Introduction:** A "welcome" or title slide.
+- **Round Introduction:** A slide announcing the upcoming round's number and all categories for that round.
+- **Question Slides:** A series of slides, one for each question in the round. Players see the question and shuffled answer choices on their devices and can submit answers.
+- **Show Answer Slides:** After each question, the host clicks to display the correct answer. This is when:
+  - Correct answer is revealed to all players and TV screens
+  - The question is marked as "closed" and locked—no more answers can be submitted for that question
+  - Scores are calculated based on submitted answers
+- **Round Completion:** A slide displaying team scores and standings after all questions in the round are answered.
+- This process repeats for all rounds.
+- **Game Completion:** A slide showing the final scores and announcing the winning team.
+- **Thanks for Playing:** A final "thank you" slide.
+
+**Player Synchronization:** Players always see exactly what the host is currently broadcasting. All players (on phones and TV) see the same slide/content at the same time.
+
+### Real-Time Communication
+
+All updates transmitted via **polling PocketBase REST API**:
+
+- Question display to TV screens
+- Question sync to player devices
+- Answer submissions
+- Score updates
+- Standings display
+- Clients poll at configurable intervals (e.g., 500ms-1s during active play)
+
+### Scoring & Results
+
+- Track all team answers in the database
+- Calculate scores based on correct answers (1 point per correct answer)
+- **Display scores only at:**
+  - End of each round (cumulative scores for that round)
+  - End of game (final cumulative scores)
+- Show final standings with winning team
+- Visualize scores using charts/graphs for engaging display
+- Scores are calculated from the database based on submitted answers and persist regardless of host navigation
+
+## Authentication & Authorization
+
+### Host Authentication
+
+- Email/password authentication required.
+- All data in the PocketBase backend is scoped to the host. Each host can only see games they created and any data related to those games (e.g., rounds, questions for each round, game players, scores).
+- Hosts cannot see or manage any data from games created by other hosts.
+- Only the host who created a game can delete it.
+- Hosts have read-only access to the global question database; they cannot add, modify, or delete questions.
+
+### Player Authentication
+
+- All players must create account with email/password
+- **Email must be unique** across the system
+- No email verification required - immediate access after account creation
+- Account creation integrated into game join flow for minimal friction
+- Players can create accounts quickly (email + password + display name)
+- **Data Model:** Every player is represented as a PocketBase `users` record. If a separate `players` collection exists, it must have a foreign key to the `users` collection.
+
+## Answer Randomization
+
+- Answers (a, b, c, d) must be shuffled for each question before display
+- **Deterministic shuffling:** Shuffle order is identical for all players, teams, TV displays, and host preview
+  - Use a deterministic seed (e.g., based on question ID) to ensure consistent shuffling across all clients
+- Host preview (during pre-game setup and during-game) shows the same shuffled order that players will see
+- **Critical**: Column "a" in database is always correct, but display order must be randomized
+
+## Timing Rules
+
+### Time Tracking
+
+- **All answer timing is always tracked** for each team for every question, regardless of whether time limits are enabled.
+- Timing is used for tie-breaking (see Scoring System below).
+
+### Time Limits (Optional)
+
+- Host can optionally configure per-question time limits during game setup.
+- Time limits are **display-only**: a countdown timer is shown to players if enabled.
+- **No auto-advance**: When time expires, the timer indicates time is up, but the host must still manually advance to the next question.
+- Countdown timer visible to players **only if time limits are enabled**.
+
+## Scoring System
+
+### Points
+
+- All questions worth 1 point (correct/incorrect, no partial credit)
+- No speed bonuses
+
+### Tie-Breaking
+
+- If teams have equal scores: team with lowest total time taken to answer wins
+- Track cumulative answer time for each team throughout game
+
+## Game State Management
+
+### Host Controls
+
+- **Pause**: Host can pause the game at any time:
+  - Both TV and player screens display a full-screen "PAUSED" message with no other content
+  - No answer submission buttons are visible
+  - Teams cannot submit answers while paused
+- **Resume**: Host can resume from paused state to continue the game
+- **Navigation**: Host can navigate through game slides (forward and backward):
+  - Host can go **back multiple slides** (across questions and even across rounds) to any previous slide.
+  - Host can move **forward** normally at any time.
+  - Players always see what the host is currently displaying (no private browsing).
+  - If a team has already answered a previous question and the host navigates back to it, the team's answer is **preserved** and any re-submission attempts will be rejected with an error message.
+  - Teams can only answer a question once; revisiting previous questions does not allow re-answering.
+- **Early End**: Host can end game before all rounds complete; show final scores based on completed rounds
+- **During-Game Question Replacement**: Host can preview and replace the **next upcoming question** (if one exists):
+  - Preview is only available when the next slide would be a question
+  - Host can click "replace" to swap with a different random question from the same category
+  - **Critical:** Questions can only be replaced if **no answers have been submitted yet**. Once a team answers a question, it is locked and cannot be replaced.
+
+### Host Disconnection Handling
+
+- **Immediate pause**: If the host disconnects, the game pauses immediately (no timeout).
+- **Player view**: Players see a "paused" state with no additional explanation.
+- **Indefinite hold**: The game remains paused indefinitely until the host reconnects.
+- **Auto-resume**: When the host reconnects, they are automatically returned to their previous game and can resume from the paused state without any additional action.
+
+### Game Persistence
+
+- Games are expected to be completed in a single session
+- However, game state persists in PocketBase to support "save and resume later" functionality
+- Host can reconnect and resume from where they left off
+- Minimal additional complexity due to polling architecture (state already in database)
+
+## Team Management
+
+### Team Setup
+
+- Host specifies minimum players per team (minimum: 1 player)
+- Host specifies maximum players per team (maximum: 6 players)
+- Solo players allowed (team of 1)
+- **No limits on number of teams** per game—unlimited teams can join
+
+### Team Rules
+
+- Players cannot switch teams after joining
+- Players cannot join once the host clicks "Start Game" (no late joins allowed)
+- Team names must be unique per game (no restrictions on content)
+
+### Answer Submission
+
+- **First answer submitted per team is final and locked**
+- If multiple players submit simultaneously: first received wins, others ignored
+- Subsequent submission attempts show message: "Your team has already answered"
+- **Any connected player on the team can submit an answer**, including players who reconnect
+
+### Player Reconnection During Game
+
+- If a player disconnects and later reconnects:
+  - They see the **current question/slide** being displayed by the host (synced to current state)
+  - If the current question hasn't been answered by their team yet, they can submit an answer
+  - If their team has already answered the current question, any re-submission attempt will show an error and be ignored
+- Players can only see the **current question/slide** the host is broadcasting—no history or future questions
+- New players **cannot join once the game has started**
+
+### Fully Disconnected Teams
+
+- If an entire team is disconnected:
+  - They receive no answers for questions displayed during disconnection
+  - They receive 0 points for those questions
+  - They still appear in final standings and scoring displays
+  - Any team member who later reconnects can submit answers for future questions
+
+## Data Persistence & History
+
+### Question Reuse Prevention
+
+- **Critical**: Never repeat questions for a host
+- Track all questions used by each host across all their games
+- Exclude previously used questions when selecting random questions
+- With 61,000+ available questions, insufficient question availability should never occur
+
+## Error Handling
+
+### Player Disconnection
+
+- Auto-reconnect attempts on connection loss
+- Show "Reconnect" button if auto-reconnect fails
+- Player rejoins same team automatically
+- Questions missed during disconnection: no penalty (not counted as incorrect)
+
+### Network Failures
+
+- Retry answer submissions automatically on network failure
+- Show loading states during retry attempts
+- Display error message if submission ultimately fails
+
+### Answer Conflicts
+
+- First answer received per team is recorded
+- Subsequent answers from same team ignored
+- Show message to late submitters: "Your team has already answered"
+
+## UI/UX Specifications
+
+### Player Interface
+
+- **Answer Display**: Show answer text only (no A/B/C/D labels)
+- **Team Status**: Show which teammates are currently online/connected
+- **Submission Status**: Show "Your team has answered" after answer submitted (don't reveal which answer)
+- **Countdown Timer**: Display only if host enabled time limits
+
+### TV Display
+
+- **During Questions**: Show question and shuffled answers only
+- **Team Count**: Show "X of Y teams have answered" during active questions (Y includes all teams that joined, including disconnected teams)
+- **Before Game**: Show team names and initial scores (0)
+- **End of Round**: Show team names, scores, and standings
+- **End of Game**: Show final team names, scores, and winner
+
+### Sound Effects (Optional)
+
+- Host can enable/disable sound effects during setup
+- Sounds for: time running out, answers locked, round complete, etc.
+
+## Edge Cases
+
+### No Answers Submitted
+
+- If no teams answer a question: host still reveals correct answer, then advance
+
+### Game Completion & Early End
+
+- Host can end game early at any time
+- **Final scores are calculated from completed rounds only:**
+  - Completed rounds: all questions answered and shown
+  - Incomplete rounds: excluded entirely (even if some questions were answered)
+  - Only closed/locked questions count toward scoring
+- Incomplete rounds are not counted
+- Teams still appear in final standings
+
+### Question Replacement
+
+- During gameplay, the host can replace the next upcoming question (see "During-Game Question Replacement" in Host Controls)
+- Replaced questions are added back to the available pool and may be used again
+- Skipped/replaced questions don't count toward round totals
+
+## Technical Requirements
+
+- PocketBase REST API for all client synchronization
+- Polling-based state updates (no SSE/websockets)
+- Mobile-responsive player interface
+- TV-optimized display for questions/scores
+- Host control interface for game management
+- Email/password authentication for all users (hosts and players)
+- Static web app deployment (React + Vite)
+- Client-side only - all game logic runs in host's browser

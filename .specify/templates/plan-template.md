@@ -31,7 +31,31 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+### Static Web Architecture Compliance
+- [ ] No server-side code or SSR dependencies
+- [ ] All functionality works within static site constraints
+- [ ] Deployment compatible with Cloudflare Pages
+- [ ] React, shadcn, and Tailwind usage confirmed
+
+### Test-Driven Development (TDD) Compliance
+- [ ] Test plan includes tests written BEFORE implementation
+- [ ] Red-Green-Refactor cycle documented
+- [ ] Vitest testing framework integration planned
+
+### High Test Coverage Compliance
+- [ ] Coverage targets (>80%) defined for the feature
+- [ ] Coverage monitoring strategy included
+- [ ] Low coverage areas identified and addressed
+
+### End-to-End Testing Compliance
+- [ ] Chrome Dev Tools MCP server testing planned
+- [ ] Browser-based validation for all user-facing features
+- [ ] Visual appearance testing included
+
+### Simplicity Compliance
+- [ ] Complexity justified for each design decision
+- [ ] YAGNI principles followed
+- [ ] Added features/dependencies provide clear value
 
 ## Project Structure
 

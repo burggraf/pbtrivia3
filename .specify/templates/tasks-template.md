@@ -7,7 +7,7 @@ description: "Task list template for feature implementation"
 **Input**: Design documents from `/specs/[###-feature-name]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
+**Tests**: Tests are MANDATORY per Trivia Party Constitution (TDD Principle). Tests must be written before implementation and follow Red-Green-Refactor cycle using Vitest. End-to-end browser testing using Chrome Dev Tools MCP server is required for all user-facing features.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -76,12 +76,14 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 1 (MANDATORY per Constitution) ⚠️
 
-**NOTE: Write these tests FIRST, ensure they FAIL before implementation**
+**NOTE: TDD Compliance Required - Write these tests FIRST, ensure they FAIL before implementation (Red-Green-Refactor)**
 
-- [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T010 [P] [US1] Unit tests in tests/unit/test_[name].spec.js (Vitest)
+- [ ] T011 [P] [US1] Component tests in tests/component/test_[component].spec.js (Vitest)
+- [ ] T012 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].spec.js
+- [ ] T013 [P] [US1] E2E browser test using Chrome Dev Tools MCP server
 
 ### Implementation for User Story 1
 
@@ -102,10 +104,12 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 2 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 2 (MANDATORY per Constitution) ⚠️
 
-- [ ] T018 [P] [US2] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T019 [P] [US2] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T018 [P] [US2] Unit tests in tests/unit/test_[name].spec.js (Vitest)
+- [ ] T019 [P] [US2] Component tests in tests/component/test_[component].spec.js (Vitest)
+- [ ] T020 [P] [US2] Integration test for [user journey] in tests/integration/test_[name].spec.js
+- [ ] T021 [P] [US2] E2E browser test using Chrome Dev Tools MCP server
 
 ### Implementation for User Story 2
 
@@ -124,10 +128,12 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 3 (OPTIONAL - only if tests requested) ⚠️
+### Tests for User Story 3 (MANDATORY per Constitution) ⚠️
 
-- [ ] T024 [P] [US3] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T025 [P] [US3] Integration test for [user journey] in tests/integration/test_[name].py
+- [ ] T024 [P] [US3] Unit tests in tests/unit/test_[name].spec.js (Vitest)
+- [ ] T025 [P] [US3] Component tests in tests/component/test_[component].spec.js (Vitest)
+- [ ] T026 [P] [US3] Integration test for [user journey] in tests/integration/test_[name].spec.js
+- [ ] T027 [P] [US3] E2E browser test using Chrome Dev Tools MCP server
 
 ### Implementation for User Story 3
 
@@ -155,6 +161,35 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Run quickstart.md validation
 
 ---
+
+## Constitution Compliance Check
+
+Before completing any user story, verify the following constitutional requirements are met:
+
+### Static Web Architecture
+- [ ] No server-side code introduced
+- [ ] All functionality works in static site constraints
+- [ ] React, shadcn, Tailwind used appropriately
+
+### TDD Compliance
+- [ ] Tests written BEFORE implementation (Red-Green-Refactor)
+- [ ] All tests pass before feature completion
+- [ ] Vitest framework used correctly
+
+### Test Coverage
+- [ ] >80% coverage achieved for new code
+- [ ] Coverage report shows improvement
+- [ ] Low coverage areas addressed
+
+### E2E Testing
+- [ ] Chrome Dev Tools MCP server tests created
+- [ ] All user-facing features validated in browser
+- [ ] Visual appearance verified
+
+### Simplicity
+- [ ] YAGNI principles followed
+- [ ] Complexity justified and documented
+- [ ] No unnecessary dependencies added
 
 ## Dependencies & Execution Order
 

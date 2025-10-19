@@ -1,50 +1,43 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+Version change: [uninitialized] → 1.0.0 (MAJOR - Initial constitution establishment)
+Modified principles: N/A (initial creation)
+Added sections: All sections newly created
+Removed sections: N/A
+Templates requiring updates: ✅ updated - plan-template.md, tasks-template.md, command templates (none found)
+Follow-up TODOs: N/A
+-->
+
+# Trivia Party Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Static Web Architecture
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+This is a static web site application with no server-side code and no SSR. It will be deployed as a static site to Cloudflare Pages. We use React, shadcn, and Tailwind for the UI/UX. All functionality must work within the constraints of a static site architecture.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Test-Driven Development (TDD)
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Write tests for everything first. Tests must pass before completing a feature. The Red-Green-Refactor cycle is strictly enforced. Use vitest as a testing framework. No feature implementation is considered complete without passing tests that were written before the code.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. High Test Coverage
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Aim for > 80% test coverage for all code. Coverage metrics are monitored and must be maintained or improved with each change. Low coverage areas must be addressed before feature completion.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. End-to-End Testing
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Use the Chrome Dev Tools MCP server to make sure every feature works and it looks correct. All user-facing features must be validated through automated browser testing to ensure proper functionality and visual appearance.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Simplicity
+
+Start simple and only add complexity when it's justified. Follow YAGNI (You Ain't Gonna Need It) principles. Every added feature, dependency, or abstraction must provide clear value to the trivia party application.
+
+## Development Workflow
+
+All code changes must be submitted through pull requests. All pull requests must be reviewed and approved by at least one other team member before being merged. All tests must pass in the CI/CD pipeline before a pull request can be merged. Code review must verify compliance with this constitution.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other practices. Amendments to this constitution require documentation, approval from the team, and a migration plan if necessary. All pull requests and code reviews must verify compliance with this constitution. Any deviation from constitutional principles must be explicitly justified and documented.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-01-19 | **Last Amended**: 2025-01-19

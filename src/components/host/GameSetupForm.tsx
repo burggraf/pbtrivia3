@@ -18,6 +18,7 @@ export function GameSetupForm({ onGameCreated }: GameSetupFormProps) {
   const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState<CreateGameData>({
     name: '',
+    host_id: '', // Will be set when user is available
     min_team_size: 1,
     max_team_size: 6,
     time_limit_enabled: false,

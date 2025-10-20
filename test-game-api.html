@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game API Test</title>
+</head>
+<body>
+    <h1>Game API Test</h1>
+    <button onclick="testGameAPI()">Test Game List API</button>
+    <div id="results"></div>
+
+    <script src="https://unpkg.com/pocketbase@0.21.1/dist/pocketbase.umd.js"></script>
+    <script>
+        const pb = new PocketBase('http://localhost:8090');
+
+        async function testGameAPI() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing API...</p>';
+
+            try {
+                // Test the OLD way (this should fail)
+                results.innerHTML = '<p>Testing OLD way with sort: -created_at (should fail)...</p>';
+                try {
+                    const oldGames = await pb.collection('games').getList(1, 5, {
+                        sort: '-created_at' // This should fail
+                    });
+                    results.innerHTML += '<p>❌ OLD way worked (unexpected!)</p>';
+                } catch (oldError) {
+                    results.innerHTML += `<p>✅ OLD way failed as expected: ${oldError.message}</p>`;
+                }
+
+                // Test the NEW way (this should work)
+                results.innerHTML += '<p>Testing NEW way with sort: -created (should work)...</p>';
+                const games = await pb.collection('games').getList(1, 20, {
+                    sort: '-created' // This is the fix - using 'created' instead of 'created_at'
+                });
+
+                console.log('Games found:', games);
+                results.innerHTML += `
+                    <h3>✅ SUCCESS! NEW way with 'sort: -created' works!</h3>
+                    <p>Found ${games.items.length} games total:</p>
+                    <ul>
+                        ${games.items.map(game => `<li>${game.name} (${game.code}) - Host: ${game.host_id}</li>`).join('')}
+                    </ul>
+                    <p><strong>🎉 THE FIX WORKED! The issue was the sort field name: -created vs -created_at</strong></p>
+                `;
+
+            } catch (error) {
+                console.error('API Test failed:', error);
+                results.innerHTML = `<h3>❌ Error: ${error.message}</h3><pre>${JSON.stringify(error, null, 2)}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>

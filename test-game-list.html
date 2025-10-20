@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game List Test</title>
+    <script src="https://unpkg.com/pocketbase@0.21.1/dist/pocketbase.umd.js"></script>
+</head>
+<body>
+    <h1>Game List Test</h1>
+    <button onclick="testGameList()">Test Game List</button>
+    <button onclick="createTestGame()">Create Test Game</button>
+    <div id="results"></div>
+
+    <script>
+        const pb = new PocketBase('http://localhost:8090');
+
+        async function testGameList() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Testing game list...</p>';
+
+            try {
+                console.log('🎮 Testing games_collection with @rowid_ sort');
+                const games = await pb.collection('games_collection').getList(1, 20, {
+                    sort: '-@rowid_',
+                });
+
+                console.log('✅ Games found:', games);
+                results.innerHTML = `
+                    <h3>✅ SUCCESS! Game list works!</h3>
+                    <p>Found ${games.items.length} games total:</p>
+                    <ul>
+                        ${games.items.map(game => `<li>${game.name} (${game.code}) - Host: ${game.host_id}</li>`).join('')}
+                    </ul>
+                    <p><strong>🎉 The game list API is now working correctly!</strong></p>
+                `;
+            } catch (error) {
+                console.error('❌ Game list test failed:', error);
+                results.innerHTML = `<h3>❌ Error: ${error.message}</h3><pre>${JSON.stringify(error, null, 2)}</pre>`;
+            }
+        }
+
+        async function createTestGame() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>Creating test game...</p>';
+
+            try {
+                // First authenticate as a test user
+                try {
+                    await pb.collection('users').authWithPassword('test@example.com', 'password123');
+                } catch (authError) {
+                    // If auth fails, try to create a test user first
+                    try {
+                        await pb.collection('users').create({
+                            email: 'test@example.com',
+                            password: 'password123',
+                            passwordConfirm: 'password123',
+                            name: 'Test User'
+                        });
+                        await pb.collection('users').authWithPassword('test@example.com', 'password123');
+                    } catch (createError) {
+                        console.log('User might already exist, trying to auth...');
+                        await pb.collection('users').authWithPassword('test@example.com', 'password123');
+                    }
+                }
+
+                console.log('🎮 Creating test game...');
+                const gameData = {
+                    name: 'Test Game ' + new Date().toISOString(),
+                    host_id: pb.authStore.record.id,
+                    code: generateGameCode(),
+                    status: 'setup',
+                    min_team_size: 1,
+                    max_team_size: 6,
+                    time_limit_enabled: false,
+                    sound_effects_enabled: true
+                };
+
+                const game = await pb.collection('games_collection').create(gameData);
+                console.log('✅ Game created successfully:', game);
+
+                // Now test the list again
+                await testGameList();
+            } catch (error) {
+                console.error('❌ Create game failed:', error);
+                results.innerHTML = `<h3>❌ Error creating game: ${error.message}</h3><pre>${JSON.stringify(error, null, 2)}</pre>`;
+            }
+        }
+
+        function generateGameCode() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+            let code = ''
+            for (let i = 0; i < 6; i++) {
+                code += characters.charAt(Math.floor(Math.random() * characters.length))
+            }
+            return code
+        }
+    </script>
+</body>
+</html>

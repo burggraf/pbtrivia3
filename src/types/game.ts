@@ -3,7 +3,7 @@ export interface Game {
   host_id: string;
   name: string;
   code: string;
-  status: 'setup' | 'live' | 'completed' | 'abandoned';
+  status: 'setup' | 'live' | 'in_progress' | 'paused' | 'completed' | 'abandoned';
   min_team_size: number;
   max_team_size: number;
   time_limit_enabled: boolean;

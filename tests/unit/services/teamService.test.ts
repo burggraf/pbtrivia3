@@ -2,8 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { teamService } from '@/services/player/teamService'
 import { pb } from '@/services/pocketbase/client'
 
-// Create mock collection methods
-const mockCollectionMethods = {
+// Create mock collections
+const mockTeamsCollection = {
+  getFirstListItem: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  getFullList: vi.fn(),
+}
+
+const mockTeamMembersCollection = {
   getFirstListItem: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
@@ -14,7 +22,20 @@ const mockCollectionMethods = {
 // Mock PocketBase
 vi.mock('@/services/pocketbase/client', () => ({
   pb: {
-    collection: vi.fn(() => mockCollectionMethods),
+    collection: vi.fn((collectionName: string) => {
+      if (collectionName === 'teams') {
+        return mockTeamsCollection
+      } else if (collectionName === 'team_members') {
+        return mockTeamMembersCollection
+      }
+      return {
+        getFirstListItem: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        getFullList: vi.fn(),
+      }
+    }),
   },
 }))
 
@@ -83,7 +104,7 @@ describe('TeamService', () => {
       }
 
       const mockCollection = pb.collection('teams')
-      mockCollection.getFirstListItem.mockResolvedValue(mockExistingTeam)
+      mockTeamMembersCollection.getFirstListItem.mockResolvedValue(mockExistingTeam)
 
       const teamData = {
         game_id: 'game123',
@@ -113,15 +134,20 @@ describe('TeamService', () => {
         joined_at: new Date().toISOString(),
       }
 
-      const mockTeamsCollection = pb.collection('teams')
       mockTeamsCollection.getFirstListItem.mockResolvedValue(mockTeam)
 
-      const mockTeamMembersCollection = pb.collection('team_members')
+      // Mock the check for existing membership - return "not found" error
+      mockTeamMembersCollection.getFirstListItem.mockRejectedValueOnce(
+        new Error('The requested resource wasn\'t found')
+      )
       mockTeamMembersCollection.create.mockResolvedValue(mockTeamMember)
 
       const result = await teamService.joinTeam(mockUser, mockTeam.id)
 
       expect(mockTeamsCollection.getFirstListItem).toHaveBeenCalledWith(`id = "${mockTeam.id}"`)
+      expect(mockTeamMembersCollection.getFirstListItem).toHaveBeenCalledWith(
+        `team_id = "${mockTeam.id}" && user_id = "${mockUser.id}"`
+      )
       expect(mockTeamMembersCollection.create).toHaveBeenCalledWith({
         team_id: mockTeam.id,
         user_id: mockUser.id,
@@ -141,7 +167,6 @@ describe('TeamService', () => {
       }
       const mockUser = { id: 'user123', name: 'Test Player' }
 
-      const mockTeamsCollection = pb.collection('teams')
       mockTeamsCollection.getFirstListItem.mockResolvedValue(mockTeam)
 
       await expect(teamService.joinTeam(mockUser, mockTeam.id)).rejects.toThrow('Cannot join a team that is already playing')
@@ -161,11 +186,9 @@ describe('TeamService', () => {
         user_id: mockUser.id,
       }
 
-      const mockTeamsCollection = pb.collection('teams')
       mockTeamsCollection.getFirstListItem.mockResolvedValue(mockTeam)
 
-      const mockTeamMembersCollection = pb.collection('team_members')
-      mockTeamMembersCollection.getFirstListItem.mockResolvedValue(mockExistingMember)
+            mockTeamMembersCollection.getFirstListItem.mockResolvedValue(mockExistingMember)
 
       await expect(teamService.joinTeam(mockUser, mockTeam.id)).rejects.toThrow('Already a member of this team')
     })
@@ -180,8 +203,7 @@ describe('TeamService', () => {
         is_captain: false,
       }
 
-      const mockTeamMembersCollection = pb.collection('team_members')
-      mockTeamMembersCollection.getFirstListItem.mockResolvedValue(mockTeamMember)
+            mockTeamMembersCollection.getFirstListItem.mockResolvedValue(mockTeamMember)
       mockTeamMembersCollection.delete.mockResolvedValue(undefined)
 
       await teamService.leaveTeam('user123', 'team123')
@@ -206,10 +228,10 @@ describe('TeamService', () => {
         is_captain: false,
       }
 
-      const mockTeamMembersCollection = pb.collection('team_members')
-      mockTeamMembersCollection.getFirstListItem
+            mockTeamMembersCollection.getFirstListItem
         .mockResolvedValueOnce(mockCaptainMember) // First call gets captain
         .mockResolvedValueOnce(mockOtherMember)  // Second call finds other member
+      mockTeamMembersCollection.getFullList.mockResolvedValue([mockOtherMember]) // Other members found
 
       await expect(teamService.leaveTeam('user123', 'team123')).rejects.toThrow(
         'Team captain cannot leave while other members are present'
@@ -228,13 +250,11 @@ describe('TeamService', () => {
         name: 'Test Team',
       }
 
-      const mockTeamMembersCollection = pb.collection('team_members')
-      const mockTeamsCollection = pb.collection('teams')
-
+            
       mockTeamMembersCollection.getFirstListItem
         .mockResolvedValueOnce(mockCaptainMember) // Get captain member
-        .mockRejectedValueOnce(new Error('No records found')) // No other members
 
+      mockTeamMembersCollection.getFullList.mockResolvedValue([]) // No other members
       mockTeamMembersCollection.delete.mockResolvedValue(undefined)
       mockTeamsCollection.delete.mockResolvedValue(undefined)
 
@@ -311,8 +331,7 @@ describe('TeamService', () => {
         },
       ]
 
-      const mockCollection = pb.collection('team_members')
-      mockCollection.getFullList.mockResolvedValue(mockMembers)
+            mockCollection.getFullList.mockResolvedValue(mockMembers)
 
       const result = await teamService.getTeamMembers('team123')
 
@@ -326,8 +345,7 @@ describe('TeamService', () => {
     })
 
     it('should return empty array for team with no members', async () => {
-      const mockCollection = pb.collection('team_members')
-      mockCollection.getFullList.mockResolvedValue([])
+            mockCollection.getFullList.mockResolvedValue([])
 
       const result = await teamService.getTeamMembers('team123')
 
@@ -344,11 +362,11 @@ describe('TeamService', () => {
       }
 
       const mockCollection = pb.collection('teams')
-      mockCollection.update.mockResolvedValue(mockTeam)
+      mockTeamMembersCollection.update.mockResolvedValue(mockTeam)
 
       const result = await teamService.updateTeamStatus('team123', 'ready')
 
-      expect(mockCollection.update).toHaveBeenCalledWith('team123', {
+      expect(mockTeamMembersCollection.update).toHaveBeenCalledWith('team123', {
         status: 'ready',
       })
       expect(result).toEqual(mockTeam)
@@ -380,17 +398,18 @@ describe('TeamService', () => {
         is_captain: true,
       }
 
-      const mockCollection = pb.collection('team_members')
-      mockCollection.getFirstListItem
+            mockTeamMembersCollection.getFirstListItem
         .mockResolvedValueOnce(mockCurrentCaptain)
         .mockResolvedValueOnce(mockNewCaptain)
 
-      mockCollection.update.mockResolvedValue(mockUpdatedMember)
+      mockTeamMembersCollection.update
+        .mockResolvedValueOnce({...mockCurrentCaptain, is_captain: false}) // Demote current captain
+        .mockResolvedValueOnce(mockUpdatedMember) // Promote new captain
 
       const result = await teamService.promoteToCaptain('user123', 'team123')
 
-      expect(mockCollection.update).toHaveBeenCalledWith('captain123', { is_captain: false })
-      expect(mockCollection.update).toHaveBeenCalledWith('member123', { is_captain: true })
+      expect(mockTeamMembersCollection.update).toHaveBeenCalledWith('captain123', { is_captain: false })
+      expect(mockTeamMembersCollection.update).toHaveBeenCalledWith('member123', { is_captain: true })
       expect(result).toEqual(mockUpdatedMember)
     })
 
@@ -407,16 +426,15 @@ describe('TeamService', () => {
         is_captain: true,
       }
 
-      const mockCollection = pb.collection('team_members')
-      mockCollection.getFirstListItem
+            mockTeamMembersCollection.getFirstListItem
         .mockRejectedValueOnce(new Error('No current captain found'))
         .mockResolvedValueOnce(mockMember)
 
-      mockCollection.update.mockResolvedValue(mockUpdatedMember)
+      mockTeamMembersCollection.update.mockResolvedValue(mockUpdatedMember)
 
       const result = await teamService.promoteToCaptain('user123', 'team123')
 
-      expect(mockCollection.update).toHaveBeenCalledWith('member123', { is_captain: true })
+      expect(mockTeamMembersCollection.update).toHaveBeenCalledWith('member123', { is_captain: true })
       expect(result).toEqual(mockUpdatedMember)
     })
   })

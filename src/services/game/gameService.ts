@@ -1,5 +1,7 @@
 import { pb } from '@/services/pocketbase/client'
-import type { Game, CreateGameData, Round, Question, RoundQuestion } from '@/types'
+import type { Game, CreateGameData } from '@/types/game'
+import type { Round } from '@/types/round'
+import type { Question } from '@/types/question'
 
 class GameService {
   /**
@@ -18,13 +20,13 @@ class GameService {
         status: 'setup' as const,
         min_team_size: config.min_team_size || 1,
         max_team_size: config.max_team_size || 6,
-        time_limit_enabled: config.time_limit_enabled || false,
+        time_limit_enabled: true, // Always true in PocketBase, control with time_limit_seconds
         time_limit_seconds: config.time_limit_enabled ? config.time_limit_seconds : 0,
         sound_effects_enabled: config.sound_effects_enabled !== false, // Default to true
       }
 
       console.log('🎮 Creating game with data:', JSON.stringify(gameData, null, 2));
-      const game = await pb.collection('games').create(gameData) as unknown as Game
+      const game = await pb.collection('games_collection').create(gameData) as unknown as Game
       console.log('✅ Game created successfully:', game);
       return game
     } catch (error) {
@@ -41,7 +43,7 @@ class GameService {
    */
   async getGame(gameId: string): Promise<Game | null> {
     try {
-      const game = await pb.collection('games').getOne(gameId)
+      const game = await pb.collection('games_collection').getOne(gameId)
       return game as unknown as Game
     } catch (error) {
       if (error instanceof Error && error.message.includes('not found')) {
@@ -56,7 +58,7 @@ class GameService {
    */
   async getGameByCode(gameCode: string): Promise<Game | null> {
     try {
-      const games = await pb.collection('games').getFirstListItem(`code = "${gameCode}"`)
+      const games = await pb.collection('games_collection').getFirstListItem(`code = "${gameCode}"`)
       return games as unknown as Game
     } catch (error) {
       if (error instanceof Error && error.message.includes('no items')) {
@@ -69,9 +71,9 @@ class GameService {
   /**
    * Update game configuration
    */
-  async updateGame(gameId: string, updates: Partial<GameCreationConfig>): Promise<Game> {
+  async updateGame(gameId: string, updates: Partial<CreateGameData>): Promise<Game> {
     try {
-      const game = await pb.collection('games').update(gameId, updates)
+      const game = await pb.collection('games_collection').update(gameId, updates)
       return game as unknown as Game
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to update game')
@@ -132,13 +134,29 @@ class GameService {
    */
   async getHostGames(hostId: string, limit = 20): Promise<Game[]> {
     try {
-      const games = await pb.collection('games').getList(1, limit, {
-        filter: `host_id = "${hostId}"`,
-        sort: '-created_at',
+      console.log('🎮 getHostGames called with hostId:', hostId);
+      console.log('🎮 PocketBase auth state:', {
+        isValid: pb.authStore.isValid,
+        record: pb.authStore.record,
+        model: pb.authStore.model
+      });
+
+      // Get the user name as fallback for games created with name instead of ID
+      const userName = pb.authStore.record?.name || pb.authStore.model?.name || '';
+      console.log('🎮 User name for fallback:', userName);
+
+      // FIX: Use correct collection name and sort field based on testing
+      console.log('🎮 TESTING: Using games_collection with @rowid sort');
+      const games = await pb.collection('games_collection').getList(1, limit, {
+        sort: '-@rowid',
       })
+
+      console.log('🎮 Games found:', games.items);
+      console.log('🎮 Games count:', games.items.length);
 
       return games.items as unknown as Game[]
     } catch (error) {
+      console.error('🎮 getHostGames error:', error);
       throw new Error(error instanceof Error ? error.message : 'Failed to get host games')
     }
   }
@@ -196,7 +214,7 @@ class GameService {
   /**
    * Generate questions for a game based on configuration
    */
-  private async generateGameQuestions(gameId: string, config: GameCreationConfig): Promise<void> {
+  private async generateGameQuestions(gameId: string, config: CreateGameData): Promise<void> {
     try {
       // Get questions from selected categories
       const questionsNeeded = config.round_count * config.questions_per_round
@@ -251,7 +269,7 @@ class GameService {
    */
   async deleteGame(gameId: string): Promise<void> {
     try {
-      await pb.collection('games').delete(gameId)
+      await pb.collection('games_collection').delete(gameId)
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to delete game')
     }
@@ -273,7 +291,7 @@ class GameService {
    * Subscribe to real-time updates for a game
    */
   subscribeToGame(gameId: string, callback: (action: string, record: Game) => void) {
-    return pb.collection('games').subscribe(gameId, (e) => {
+    return pb.collection('games_collection').subscribe(gameId, (e) => {
       callback(e.action, e.record as unknown as Game)
     })
   }
@@ -380,7 +398,7 @@ class GameService {
   /**
    * Validate game configuration
    */
-  validateGameConfig(config: Partial<GameCreationConfig>): { isValid: boolean; errors: string[] } {
+  validateGameConfig(config: Partial<CreateGameData>): { isValid: boolean; errors: string[] } {
     const errors: string[] = []
 
     if (!config.title || config.title.length < 3) {

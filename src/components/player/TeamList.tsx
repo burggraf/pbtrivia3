@@ -11,7 +11,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Users, Crown, Plus } from 'lucide-react'
 import { teamService } from '@/services/player/teamService'
 import { pb } from '@/services/pocketbase/client'
-import type { User, Team, TeamMember } from '@/types/user'
+import type { User } from '@/types/user'
+import type { Team } from '@/types/team'
+import type { TeamMember } from '@/types/teamMember'
 
 interface TeamListProps {
   gameId: string

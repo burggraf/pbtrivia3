@@ -1,5 +1,5 @@
 import { pb } from '@/services/pocketbase/client'
-import type { Round, CreateRoundData, UpdateRoundData } from '@/types'
+import type { Round, CreateRoundData, UpdateRoundData } from '@/types/round'
 import { PREDEFINED_CATEGORIES } from '@/types/round'
 
 class RoundService {
@@ -22,6 +22,7 @@ class RoundService {
         title: data.title,
         num_questions: data.num_questions,
         categories: data.categories,
+        status: 'setup',
         created_at: new Date().toISOString(),
       };
 

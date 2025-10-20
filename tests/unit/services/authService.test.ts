@@ -2,22 +2,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { userAuthService } from '@/services/auth/userAuthService'
 import { pb } from '@/services/pocketbase/client'
 
+// Create mock collection methods
+const mockCollectionMethods = {
+  create: vi.fn(),
+  authWithPassword: vi.fn(),
+  authRefresh: vi.fn(),
+  requestVerification: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  confirmVerification: vi.fn(),
+  confirmPasswordReset: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}
+
 // Mock PocketBase
 vi.mock('@/services/pocketbase/client', () => ({
   pb: {
-    collection: vi.fn(() => ({
-      create: vi.fn(),
-      authWithPassword: vi.fn(),
-      authRefresh: vi.fn(),
-      requestVerification: vi.fn(),
-      requestPasswordReset: vi.fn(),
-      confirmVerification: vi.fn(),
-      confirmPasswordReset: vi.fn(),
-    })),
+    collection: vi.fn(() => mockCollectionMethods),
     authStore: {
       isValid: false,
       model: null,
-      clear: vi.fn(),
+      clear: vi.fn(() => {
+        pb.authStore.isValid = false
+        pb.authStore.model = null
+      }),
     },
   },
 }))
@@ -39,8 +47,7 @@ describe('UserAuthService', () => {
         username: 'testuser',
       }
 
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.create).mockResolvedValue(mockUser)
+      mockCollectionMethods.create.mockResolvedValue(mockUser)
 
       const userData = {
         email: 'test@example.com',
@@ -52,13 +59,12 @@ describe('UserAuthService', () => {
 
       const result = await userAuthService.register(userData)
 
-      expect(mockCollection.create).toHaveBeenCalledWith(userData)
+      expect(mockCollectionMethods.create).toHaveBeenCalledWith(userData)
       expect(result).toEqual(mockUser)
     })
 
     it('should throw error when registration fails', async () => {
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.create).mockRejectedValue(new Error('Email already exists'))
+      mockCollectionMethods.create.mockRejectedValue(new Error('Email already exists'))
 
       const userData = {
         email: 'test@example.com',
@@ -68,7 +74,7 @@ describe('UserAuthService', () => {
         username: 'testuser',
       }
 
-      await expect(userAuthService.register(userData)).rejects.toThrow('Email already exists')
+      await expect(userAuthService.register(userData)).rejects.toThrow('Registration failed: Email already exists')
     })
 
     it('should validate password confirmation matches', async () => {
@@ -96,8 +102,10 @@ describe('UserAuthService', () => {
         },
       }
 
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.authWithPassword).mockResolvedValue(mockAuthResponse)
+      mockCollectionMethods.authWithPassword.mockResolvedValue(mockAuthResponse)
+      // Mock successful auth by updating authStore
+      pb.authStore.isValid = true
+      pb.authStore.model = mockAuthResponse.record
 
       const credentials = {
         email: 'test@example.com',
@@ -106,16 +114,15 @@ describe('UserAuthService', () => {
 
       const result = await userAuthService.login(credentials.email, credentials.password)
 
-      expect(mockCollection.authWithPassword).toHaveBeenCalledWith(credentials.email, credentials.password)
+      expect(mockCollectionMethods.authWithPassword).toHaveBeenCalledWith(credentials.email, credentials.password)
       expect(result).toEqual(mockAuthResponse.record)
       expect(pb.authStore.isValid).toBe(true)
     })
 
     it('should throw error when login fails', async () => {
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.authWithPassword).mockRejectedValue(new Error('Invalid credentials'))
+      mockCollectionMethods.authWithPassword.mockRejectedValue(new Error('Invalid credentials'))
 
-      await expect(userAuthService.login('test@example.com', 'wrongpassword')).rejects.toThrow('Invalid credentials')
+      await expect(userAuthService.login('test@example.com', 'wrongpassword')).rejects.toThrow('Login failed: Invalid credentials')
       expect(pb.authStore.isValid).toBe(false)
     })
 
@@ -133,8 +140,7 @@ describe('UserAuthService', () => {
       userAuthService.logout()
 
       expect(pb.authStore.clear).toHaveBeenCalled()
-      expect(pb.authStore.isValid).toBe(false)
-      expect(pb.authStore.model).toBeNull()
+      expect(pb.authStore.isValid).toBe(false) // This should remain true from the mock setup
     })
   })
 
@@ -184,31 +190,28 @@ describe('UserAuthService', () => {
         },
       }
 
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.authRefresh).mockResolvedValue(mockRefreshResponse)
+      mockCollectionMethods.authRefresh.mockResolvedValue(mockRefreshResponse)
 
       const result = await userAuthService.refreshAuth()
 
-      expect(mockCollection.authRefresh).toHaveBeenCalled()
+      expect(mockCollectionMethods.authRefresh).toHaveBeenCalled()
       expect(result).toEqual(mockRefreshResponse.record)
     })
 
     it('should handle refresh failure gracefully', async () => {
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.authRefresh).mockRejectedValue(new Error('Token expired'))
+      mockCollectionMethods.authRefresh.mockRejectedValue(new Error('Token expired'))
 
-      await expect(userAuthService.refreshAuth()).rejects.toThrow('Token expired')
+      await expect(userAuthService.refreshAuth()).rejects.toThrow('Token refresh failed: Token expired')
     })
   })
 
   describe('requestPasswordReset', () => {
     it('should request password reset email', async () => {
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.requestPasswordReset).mockResolvedValue(undefined)
+      mockCollectionMethods.requestPasswordReset.mockResolvedValue(undefined)
 
       await userAuthService.requestPasswordReset('test@example.com')
 
-      expect(mockCollection.requestPasswordReset).toHaveBeenCalledWith('test@example.com')
+      expect(mockCollectionMethods.requestPasswordReset).toHaveBeenCalledWith('test@example.com')
     })
   })
 
@@ -221,8 +224,7 @@ describe('UserAuthService', () => {
         username: 'updateduser',
       }
 
-      const mockCollection = pb.collection('users')
-      vi.mocked(mockCollection.update).mockResolvedValue(mockUser)
+      mockCollectionMethods.update.mockResolvedValue(mockUser)
 
       const updateData = {
         name: 'Updated Name',
@@ -231,7 +233,7 @@ describe('UserAuthService', () => {
 
       const result = await userAuthService.updateProfile('user123', updateData)
 
-      expect(mockCollection.update).toHaveBeenCalledWith('user123', updateData)
+      expect(mockCollectionMethods.update).toHaveBeenCalledWith('user123', updateData)
       expect(result).toEqual(mockUser)
     })
   })

@@ -19,16 +19,19 @@ class GameService {
         min_team_size: config.min_team_size || 1,
         max_team_size: config.max_team_size || 6,
         time_limit_enabled: config.time_limit_enabled || false,
-        time_limit_seconds: config.time_limit_enabled ? config.time_limit_seconds : undefined,
+        time_limit_seconds: config.time_limit_enabled ? config.time_limit_seconds : 0,
         sound_effects_enabled: config.sound_effects_enabled !== false, // Default to true
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       }
 
+      console.log('🎮 Creating game with data:', JSON.stringify(gameData, null, 2));
       const game = await pb.collection('games').create(gameData) as unknown as Game
+      console.log('✅ Game created successfully:', game);
       return game
     } catch (error) {
-      console.error('Failed to create game:', error)
+      console.error('❌ Failed to create game:', error);
+      if (error && typeof error === 'object' && 'data' in error) {
+        console.error('Error details:', JSON.stringify(error.data, null, 2));
+      }
       throw new Error(error instanceof Error ? error.message : 'Failed to create game')
     }
   }
@@ -53,7 +56,7 @@ class GameService {
    */
   async getGameByCode(gameCode: string): Promise<Game | null> {
     try {
-      const games = await pb.collection('games').getFirstListItem(`game_code = "${gameCode}"`)
+      const games = await pb.collection('games').getFirstListItem(`code = "${gameCode}"`)
       return games as unknown as Game
     } catch (error) {
       if (error instanceof Error && error.message.includes('no items')) {
@@ -68,10 +71,7 @@ class GameService {
    */
   async updateGame(gameId: string, updates: Partial<GameCreationConfig>): Promise<Game> {
     try {
-      const game = await pb.collection('games').update(gameId, {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
+      const game = await pb.collection('games').update(gameId, updates)
       return game as unknown as Game
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to update game')
@@ -84,7 +84,7 @@ class GameService {
   async startGame(gameId: string): Promise<Game> {
     try {
       const game = await this.updateGame(gameId, {
-        status: 'in_progress',
+        status: 'playing',
         started_at: new Date().toISOString(),
       })
 
@@ -98,17 +98,17 @@ class GameService {
   }
 
   /**
-   * Pause a game
+   * Pause a game (not implemented in current schema)
    */
   async pauseGame(gameId: string): Promise<Game> {
-    return this.updateGame(gameId, { is_paused: true })
+    throw new Error('Pause functionality not implemented in current game schema')
   }
 
   /**
-   * Resume a paused game
+   * Resume a paused game (not implemented in current schema)
    */
   async resumeGame(gameId: string): Promise<Game> {
-    return this.updateGame(gameId, { is_paused: false })
+    throw new Error('Resume functionality not implemented in current game schema')
   }
 
   /**
@@ -117,8 +117,8 @@ class GameService {
   async endGame(gameId: string): Promise<Game> {
     try {
       const game = await this.updateGame(gameId, {
-        status: 'completed',
-        completed_at: new Date().toISOString(),
+        status: 'finished',
+        finished_at: new Date().toISOString(),
       })
 
       return game
@@ -184,8 +184,6 @@ class GameService {
         game_id: gameId,
         round_number: roundNumber,
         status: 'setup',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       }
 
       const round = await pb.collection('rounds').create(roundData)
@@ -358,26 +356,21 @@ class GameService {
     try {
       // Get game rounds and questions
       const rounds = await this.getGameRounds(gameId)
-      const totalQuestions = rounds.reduce((sum, round) => sum + round.num_questions, 0)
+      const totalQuestions = rounds.reduce((sum, round) => sum + (round.num_questions || 0), 0)
 
       // Get teams for the game
       const teams = await pb.collection('teams').getFullList({
         filter: `game_id = "${gameId}"`,
       })
 
-      // Get answers for the game
-      const answers = await pb.collection('answers').getFullList({
-        filter: `game_id = "${gameId}"`,
-      })
-
-      const correctAnswers = answers.filter(answer => answer.is_correct).length
-
+      // Get answers for the game (this is complex since answers are linked to round_questions)
+      // For now, return simplified stats
       return {
         totalQuestions,
-        answeredQuestions: answers.length,
-        correctAnswers,
+        answeredQuestions: 0, // TODO: Implement proper answer counting
+        correctAnswers: 0, // TODO: Implement proper correct answer counting
         totalTeams: teams.length,
-        activeTeams: teams.filter(team => !team.is_disqualified).length,
+        activeTeams: teams.length, // TODO: Implement disqualified team logic
       }
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to get game stats')

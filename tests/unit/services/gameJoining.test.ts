@@ -2,16 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { gameJoiningService } from '@/services/player/gameJoiningService'
 import { pb } from '@/services/pocketbase/client'
 
+// Create mock collection methods
+const mockCollectionMethods = {
+  getFirstListItem: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  getFullList: vi.fn(),
+}
+
 // Mock PocketBase
 vi.mock('@/services/pocketbase/client', () => ({
   pb: {
-    collection: vi.fn(() => ({
-      getFirstListItem: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      getFullList: vi.fn(),
-    })),
+    collection: vi.fn(() => mockCollectionMethods),
     send: vi.fn(),
   },
 }))
@@ -33,18 +36,16 @@ describe('GameJoiningService', () => {
         max_team_size: 6,
       }
 
-      const mockCollection = pb.collection('games')
-      vi.mocked(mockCollection.getFirstListItem).mockResolvedValue(mockGame)
+      mockCollectionMethods.getFirstListItem.mockResolvedValue(mockGame)
 
       const result = await gameJoiningService.findGameByCode('GAME01')
 
-      expect(mockCollection.getFirstListItem).toHaveBeenCalledWith('code = "GAME01"')
+      expect(mockCollectionMethods.getFirstListItem).toHaveBeenCalledWith('code = "GAME01"')
       expect(result).toEqual(mockGame)
     })
 
     it('should return null when game not found', async () => {
-      const mockCollection = pb.collection('games')
-      vi.mocked(mockCollection.getFirstListItem).mockRejectedValue(new Error('The requested resource wasn\'t found.'))
+      mockCollectionMethods.getFirstListItem.mockRejectedValue(new Error('The requested resource wasn\'t found.'))
 
       const result = await gameJoiningService.findGameByCode('INVALID')
 
@@ -75,16 +76,16 @@ describe('GameJoiningService', () => {
         joined_at: new Date().toISOString(),
       }
 
-      const mockGamesCollection = pb.collection('games')
-      vi.mocked(mockGamesCollection.getFirstListItem).mockResolvedValue(mockGame)
-
-      const mockTeamMembersCollection = pb.collection('team_members')
-      vi.mocked(mockTeamMembersCollection.create).mockResolvedValue(mockPlayerRecord)
+      // First call gets the game, second call creates team member
+      mockCollectionMethods.getFirstListItem
+        .mockResolvedValueOnce(mockGame)
+        .mockRejectedValueOnce(new Error('The requested resource wasn\'t found.')) // For checking if already joined
+      mockCollectionMethods.create.mockResolvedValue(mockPlayerRecord)
 
       const result = await gameJoiningService.joinGame(mockUser, 'GAME01')
 
-      expect(mockGamesCollection.getFirstListItem).toHaveBeenCalledWith('code = "GAME01"')
-      expect(mockTeamMembersCollection.create).toHaveBeenCalledWith({
+      expect(mockCollectionMethods.getFirstListItem).toHaveBeenCalledWith('code = "GAME01"')
+      expect(mockCollectionMethods.create).toHaveBeenCalledWith({
         user_id: mockUser.id,
         game_id: mockGame.id,
         name: mockUser.name,
@@ -104,8 +105,7 @@ describe('GameJoiningService', () => {
       }
       const mockUser = { id: 'user123', name: 'Test Player' }
 
-      const mockGamesCollection = pb.collection('games')
-      vi.mocked(mockGamesCollection.getFirstListItem).mockResolvedValue(mockGame)
+      mockCollectionMethods.getFirstListItem.mockResolvedValue(mockGame)
 
       await expect(gameJoiningService.joinGame(mockUser, 'GAME01')).rejects.toThrow('Cannot join a game that has already started')
     })
@@ -125,11 +125,10 @@ describe('GameJoiningService', () => {
         game_id: mockGame.id,
       }
 
-      const mockGamesCollection = pb.collection('games')
-      vi.mocked(mockGamesCollection.getFirstListItem).mockResolvedValue(mockGame)
-
-      const mockTeamMembersCollection = pb.collection('team_members')
-      vi.mocked(mockTeamMembersCollection.getFirstListItem).mockResolvedValue(mockExistingTeamMember)
+      // First call gets the game, second call finds existing team member
+      mockCollectionMethods.getFirstListItem
+        .mockResolvedValueOnce(mockGame)
+        .mockResolvedValueOnce(mockExistingTeamMember)
 
       await expect(gameJoiningService.joinGame(mockUser, 'GAME01')).rejects.toThrow('Already joined this game')
     })
@@ -144,21 +143,19 @@ describe('GameJoiningService', () => {
         team_id: 'team123',
       }
 
-      const mockTeamMembersCollection = pb.collection('team_members')
-      vi.mocked(mockTeamMembersCollection.getFirstListItem).mockResolvedValue(mockTeamMember)
-      vi.mocked(mockTeamMembersCollection.delete).mockResolvedValue(undefined)
+      mockCollectionMethods.getFirstListItem.mockResolvedValue(mockTeamMember)
+      mockCollectionMethods.delete.mockResolvedValue(undefined)
 
       await gameJoiningService.leaveGame('user123', 'game123')
 
-      expect(mockTeamMembersCollection.getFirstListItem).toHaveBeenCalledWith(
+      expect(mockCollectionMethods.getFirstListItem).toHaveBeenCalledWith(
         'user_id = "user123" && game_id = "game123"'
       )
-      expect(mockTeamMembersCollection.delete).toHaveBeenCalledWith('member123')
+      expect(mockCollectionMethods.delete).toHaveBeenCalledWith('member123')
     })
 
     it('should handle leaving game when not joined', async () => {
-      const mockTeamMembersCollection = pb.collection('team_members')
-      vi.mocked(mockTeamMembersCollection.getFirstListItem).mockRejectedValue(
+      mockCollectionMethods.getFirstListItem.mockRejectedValue(
         new Error('The requested resource wasn\'t found.')
       )
 
@@ -176,12 +173,11 @@ describe('GameJoiningService', () => {
         started_at: '2025-01-19T20:00:00Z',
       }
 
-      const mockCollection = pb.collection('games')
-      vi.mocked(mockCollection.getFirstListItem).mockResolvedValue(mockGame)
+      mockCollectionMethods.getFirstListItem.mockResolvedValue(mockGame)
 
       const result = await gameJoiningService.getGameStatus('game123')
 
-      expect(mockCollection.getFirstListItem).toHaveBeenCalledWith('id = "game123"')
+      expect(mockCollectionMethods.getFirstListItem).toHaveBeenCalledWith('id = "game123"')
       expect(result).toEqual({
         status: mockGame.status,
         currentRound: mockGame.current_round,
@@ -190,8 +186,7 @@ describe('GameJoiningService', () => {
     })
 
     it('should return null for non-existent game', async () => {
-      const mockCollection = pb.collection('games')
-      vi.mocked(mockCollection.getFirstListItem).mockRejectedValue(
+      mockCollectionMethods.getFirstListItem.mockRejectedValue(
         new Error('The requested resource wasn\'t found.')
       )
 
@@ -206,26 +201,37 @@ describe('GameJoiningService', () => {
       const mockTeamMembers = [
         {
           id: 'member1',
+          user_id: 'user123',
           game_id: 'game1',
-          name: 'Game 1',
-          code: 'GAME01',
-          status: 'setup',
+          expand: {
+            game_id: {
+              id: 'game1',
+              name: 'Game 1',
+              code: 'GAME01',
+              status: 'setup',
+            },
+          },
         },
         {
           id: 'member2',
+          user_id: 'user123',
           game_id: 'game2',
-          name: 'Game 2',
-          code: 'GAME02',
-          status: 'active',
+          expand: {
+            game_id: {
+              id: 'game2',
+              name: 'Game 2',
+              code: 'GAME02',
+              status: 'active',
+            },
+          },
         },
       ]
 
-      const mockTeamMembersCollection = pb.collection('team_members')
-      vi.mocked(mockTeamMembersCollection.getFullList).mockResolvedValue(mockTeamMembers)
+      mockCollectionMethods.getFullList.mockResolvedValue(mockTeamMembers)
 
       const result = await gameJoiningService.getJoinedGames('user123')
 
-      expect(mockTeamMembersCollection.getFullList).toHaveBeenCalledWith(
+      expect(mockCollectionMethods.getFullList).toHaveBeenCalledWith(
         1,
         50,
         {
@@ -239,8 +245,7 @@ describe('GameJoiningService', () => {
     })
 
     it('should return empty list when user hasn\'t joined any games', async () => {
-      const mockTeamMembersCollection = pb.collection('team_members')
-      vi.mocked(mockTeamMembersCollection.getFullList).mockResolvedValue([])
+      mockCollectionMethods.getFullList.mockResolvedValue([])
 
       const result = await gameJoiningService.getJoinedGames('user123')
 
@@ -257,8 +262,7 @@ describe('GameJoiningService', () => {
       }
 
       // Mock team count query
-      const mockTeamsCollection = pb.collection('teams')
-      vi.mocked(mockTeamsCollection.getFullList).mockResolvedValue([
+      mockCollectionMethods.getFullList.mockResolvedValue([
         { id: 'team1' },
         { id: 'team2' },
         { id: 'team3' },
@@ -280,7 +284,7 @@ describe('GameJoiningService', () => {
       const result = await gameJoiningService.validateGameJoinability(mockGame)
 
       expect(result.canJoin).toBe(false)
-      expect(result.reason).toBe('Game has already started')
+      expect(result.reason).toBe('Cannot join a game that has already started')
     })
 
     it('should reject game with maximum teams', async () => {
@@ -291,8 +295,7 @@ describe('GameJoiningService', () => {
       }
 
       // Mock max teams already reached
-      const mockTeamsCollection = pb.collection('teams')
-      vi.mocked(mockTeamsCollection.getFullList).mockResolvedValue([
+      mockCollectionMethods.getFullList.mockResolvedValue([
         { id: 'team1' },
         { id: 'team2' },
         { id: 'team3' },

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { gameService } from '@/services/game/gameService';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Game, CreateGameData } from '@/types/game';
 
 interface GameSetupFormProps {
@@ -14,6 +15,7 @@ interface GameSetupFormProps {
 }
 
 export function GameSetupForm({ onGameCreated }: GameSetupFormProps) {
+  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState<CreateGameData>({
     name: '',
     min_team_size: 1,
@@ -80,9 +82,13 @@ export function GameSetupForm({ onGameCreated }: GameSetupFormProps) {
     setErrors({});
 
     try {
+      if (!isAuthenticated || !user) {
+        throw new Error('You must be logged in to create a game');
+      }
+
       const gameData = {
         ...formData,
-        host_id: 'temp-host-id', // This would come from auth context
+        host_id: user.id,
       };
 
       const game = await gameService.createGame(gameData);
@@ -154,7 +160,11 @@ export function GameSetupForm({ onGameCreated }: GameSetupFormProps) {
                 min="1"
                 max="6"
                 value={formData.min_team_size}
-                onChange={(e) => handleInputChange('min_team_size', parseInt(e.target.value) || 1)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const numValue = value === '' ? 1 : parseInt(value, 10) || 1;
+                  handleInputChange('min_team_size', numValue);
+                }}
                 disabled={isLoading}
               />
             </div>
@@ -166,7 +176,11 @@ export function GameSetupForm({ onGameCreated }: GameSetupFormProps) {
                 min="1"
                 max="6"
                 value={formData.max_team_size}
-                onChange={(e) => handleInputChange('max_team_size', parseInt(e.target.value) || 6)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const numValue = value === '' ? 6 : parseInt(value, 10) || 6;
+                  handleInputChange('max_team_size', numValue);
+                }}
                 disabled={isLoading}
               />
             </div>
@@ -206,7 +220,11 @@ export function GameSetupForm({ onGameCreated }: GameSetupFormProps) {
                   min="10"
                   max="300"
                   value={formData.time_limit_seconds}
-                  onChange={(e) => handleInputChange('time_limit_seconds', parseInt(e.target.value) || 60)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const numValue = value === '' ? 60 : parseInt(value, 10) || 60;
+                    handleInputChange('time_limit_seconds', numValue);
+                  }}
                   disabled={isLoading}
                 />
                 {errors.timeLimit && (

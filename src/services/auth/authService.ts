@@ -52,9 +52,23 @@ export class AuthService {
    * Get current authenticated user
    */
   static getCurrentUser(): User | null {
-    if ((pb.authStore as any).isValid && (pb.authStore as any).record) {
-      return (pb.authStore as any).record as unknown as User;
+    console.log('🔥 AuthService.getCurrentUser: PocketBase auth store:', {
+      isValid: pb.authStore.isValid,
+      token: !!pb.authStore.token,
+      record: pb.authStore.record,
+      model: pb.authStore.model
+    });
+
+    if (pb.authStore.isValid) {
+      // Try record first, fallback to model
+      const user = (pb.authStore.record || pb.authStore.model) as unknown as User;
+      if (user) {
+        console.log('🔥 AuthService.getCurrentUser: Returning user:', user);
+        return user;
+      }
     }
+
+    console.log('🔥 AuthService.getCurrentUser: No valid user found');
     return null;
   }
 

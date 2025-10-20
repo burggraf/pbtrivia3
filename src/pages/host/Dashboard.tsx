@@ -6,14 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { GameSetupForm } from '@/components/host/GameSetupForm';
 import { RoundConfigurationForm } from '@/components/host/RoundConfigurationForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Trophy, Plus, Play, Settings, Users } from 'lucide-react';
+import { Trophy, Plus, Play, Settings, Users, LogOut } from 'lucide-react';
 import { gameService } from '@/services/game/gameService';
 import { roundService } from '@/services/game/roundService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import type { Game, Round } from '@/types';
 
 interface HostDashboardProps {}
 
 export function HostDashboard({}: HostDashboardProps) {
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [selectedRound, setSelectedRound] = useState<Round | undefined>();
@@ -47,6 +51,15 @@ export function HostDashboard({}: HostDashboardProps) {
     console.log('Starting game:', currentGame.id);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   const canStartGame = currentGame && rounds.length > 0;
 
   return (
@@ -62,11 +75,27 @@ export function HostDashboard({}: HostDashboardProps) {
             Create and manage your trivia games
           </p>
         </div>
-        {currentGame && (
-          <Badge variant="secondary" className="text-sm">
-            Game Code: {currentGame.code}
-          </Badge>
-        )}
+        <div className="flex items-center gap-4">
+          {currentGame && (
+            <Badge variant="secondary" className="text-sm">
+              Game Code: {currentGame.code}
+            </Badge>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {user?.name}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Error Display */}

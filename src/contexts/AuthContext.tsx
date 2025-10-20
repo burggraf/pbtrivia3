@@ -35,17 +35,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Check for demo authentication first
-        const demoUser = localStorage.getItem('user');
-        const demoRole = localStorage.getItem('userRole');
+        // Check PocketBase auth store first
+        console.log('🔥 AuthContext: Initializing auth, PocketBase auth store:', {
+          isValid: pb.authStore.isValid,
+          token: !!pb.authStore.token,
+          record: pb.authStore.record,
+          model: pb.authStore.model
+        });
 
-        if (demoUser && demoRole) {
-          const user = JSON.parse(demoUser);
-          setUser(user);
-          setUserRoleState(demoRole as UserRole);
-        } else if ((pb.authStore as any).isValid && (pb.authStore as any).record) {
-          const currentUser = (pb.authStore as any).record as User;
+        if (pb.authStore.isValid && pb.authStore.record) {
+          const currentUser = pb.authStore.record as User;
           setUser(currentUser);
+          console.log('🔥 AuthContext: Found existing user in PocketBase store:', currentUser);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Listen for auth state changes
     const unsubscribe = AuthService.onAuthChange((authUser) => {
+      console.log('🔥 AuthContext: Auth state changed:', authUser);
       setUser(authUser);
       if (!authUser) {
         setUserRoleState(null); // Clear role when user logs out
@@ -73,8 +75,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(true);
     try {
       const loggedInUser = await AuthService.login({ email, password });
+      console.log('🔥 AuthContext.login: User logged in:', loggedInUser);
+
+      // Set user immediately from the login response
       setUser(loggedInUser);
+
+      // Debug PocketBase auth store state
+      console.log('🔥 AuthContext.login: PocketBase auth store state:', {
+        isValid: pb.authStore.isValid,
+        token: !!pb.authStore.token,
+        record: pb.authStore.record,
+        model: pb.authStore.model
+      });
+
+      // Force state sync if needed
+      if (pb.authStore.isValid && pb.authStore.record && !user) {
+        console.log('🔥 AuthContext.login: Direct PocketBase auth store sync');
+        setUser(pb.authStore.record as User);
+      }
     } catch (error) {
+      console.error('❌ AuthContext.login: Login failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -99,9 +119,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await AuthService.logout();
       setUser(null);
       setUserRoleState(null);
-      // Clear demo authentication
-      localStorage.removeItem('user');
-      localStorage.removeItem('userRole');
     } catch (error) {
       throw error;
     } finally {
@@ -143,36 +160,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const setUserRole = (role: UserRole): void => {
     setUserRoleState(role);
-    // Store role in localStorage for persistence
-    try {
-      localStorage.setItem('userRole', role);
-    } catch (error) {
-      console.error('Failed to store user role:', error);
-    }
   };
 
   const clearUserRole = (): void => {
     setUserRoleState(null);
-    try {
-      localStorage.removeItem('userRole');
-    } catch (error) {
-      console.error('Failed to clear user role:', error);
-    }
   };
-
-  // Restore user role from localStorage on mount
-  useEffect(() => {
-    if (user && !userRole) {
-      try {
-        const storedRole = localStorage.getItem('userRole') as UserRole | null;
-        if (storedRole && ['host', 'player', 'tv'].includes(storedRole)) {
-          setUserRoleState(storedRole);
-        }
-      } catch (error) {
-        console.error('Failed to restore user role:', error);
-      }
-    }
-  }, [user, userRole]);
 
   const value: AuthContextType = {
     user,

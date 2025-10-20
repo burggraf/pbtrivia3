@@ -17,7 +17,7 @@ import { TeamList } from '@/components/player/TeamList'
 import { TeamCreationForm } from '@/components/player/TeamCreationForm'
 import { gameJoiningService } from '@/services/player/gameJoiningService'
 import { teamService } from '@/services/player/teamService'
-import { Loader2, Users, Gamepad2, ArrowLeft, Crown } from 'lucide-react'
+import { Loader2, Users, Gamepad2, ArrowLeft, Crown, LogOut } from 'lucide-react'
 import type { User, Team, TeamMember, Game } from '@/types/user'
 
 type ViewState = 'join-game' | 'team-list' | 'create-team'
@@ -25,7 +25,7 @@ type ViewState = 'join-game' | 'team-list' | 'create-team'
 export function PlayerJoinPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
 
   const [currentGame, setCurrentGame] = useState<Game | null>(null)
   const [userTeam, setUserTeam] = useState<Team | null>(null)
@@ -151,6 +151,15 @@ export function PlayerJoinPage() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await logout()
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -196,7 +205,19 @@ export function PlayerJoinPage() {
                 {currentGame ? `Playing in: ${currentGame.name}` : 'Join a game to get started'}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {user?.name}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
               {currentGame && (
                 <Button variant="outline" onClick={handleLeaveGame}>
                   Leave Game

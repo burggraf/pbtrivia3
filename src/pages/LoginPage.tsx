@@ -7,13 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { useEffect } from 'react'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { login, register } = useAuth()
+  const { login, register, setUserRole, isAuthenticated, userRole } = useAuth()
 
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<'host' | 'player'>('host')
   const [loginData, setLoginData] = useState({
     email: '',
     password: ''
@@ -24,6 +26,18 @@ export function LoginPage() {
     passwordConfirm: '',
     name: ''
   })
+
+  // Handle navigation after successful login and role setting
+  useEffect(() => {
+    if (isAuthenticated && userRole) {
+      // Navigate to appropriate dashboard based on role
+      if (userRole === 'host') {
+        navigate('/host/dashboard')
+      } else {
+        navigate('/player/join')
+      }
+    }
+  }, [isAuthenticated, userRole, navigate])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,13 +52,23 @@ export function LoginPage() {
 
     setIsLoading(true)
     try {
-      await login(loginData.email, loginData.password)
+      const user = await login(loginData.email, loginData.password)
+      console.log('🔥 LOGIN SUCCESS - User object:', user)
+      console.log('🔥 POCKETBASE AUTH STORE after login:', {
+        isValid: (window as any).pb?.authStore?.isValid,
+        token: !!(window as any).pb?.authStore?.token,
+        record: (window as any).pb?.authStore?.record
+      })
+
       toast({
         title: 'Login Successful',
-        description: 'Welcome back!',
+        description: 'Please select your role to continue.',
       })
-      navigate('/')
+
+      // Navigate will be handled by AuthContext based on auth state only
+      // Role selection happens on the role selection screen
     } catch (error) {
+      console.error('❌ LOGIN FAILED:', error)
       toast({
         title: 'Login Failed',
         description: error instanceof Error ? error.message : 'Invalid credentials.',
@@ -85,9 +109,10 @@ export function LoginPage() {
       })
       toast({
         title: 'Registration Successful',
-        description: 'Account created successfully!',
+        description: 'Account created successfully! Please select your role to continue.',
       })
-      navigate('/')
+      // Navigate will be handled by AuthContext based on auth state only
+      // Role selection happens on the role selection screen
     } catch (error) {
       toast({
         title: 'Registration Failed',
@@ -99,41 +124,7 @@ export function LoginPage() {
     }
   }
 
-  // For demo purposes, create a quick login function
-  const handleDemoLogin = async (role: 'host' | 'player') => {
-    setIsLoading(true)
-    try {
-      // Simulate authentication for demo
-      const demoUser = {
-        id: role === 'host' ? 'demo_host_1' : 'demo_player_1',
-        email: role === 'host' ? 'host@demo.com' : 'player@demo.com',
-        name: role === 'host' ? 'Demo Host' : 'Demo Player',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      // Mock successful authentication
-      localStorage.setItem('user', JSON.stringify(demoUser))
-      localStorage.setItem('userRole', role)
-
-      toast({
-        title: 'Demo Login Successful',
-        description: `Logged in as ${role === 'host' ? 'Game Host' : 'Player'}`,
-      })
-
-      // Force page reload to trigger auth context update
-      window.location.reload()
-    } catch (error) {
-      toast({
-        title: 'Demo Login Failed',
-        description: 'Could not complete demo login.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
+  
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -141,6 +132,41 @@ export function LoginPage() {
           <h1 className="text-3xl font-bold mb-2">Trivia Party</h1>
           <p className="text-muted-foreground">Real-time multiplayer trivia for venues</p>
         </div>
+
+        {/* Role Selection */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-center">Select Your Role</CardTitle>
+            <CardDescription className="text-center">
+              Choose how you want to participate in the trivia game
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                variant={selectedRole === 'host' ? 'default' : 'outline'}
+                onClick={() => setSelectedRole('host')}
+                disabled={isLoading}
+                className="h-16 flex flex-col items-center justify-center"
+              >
+                <div className="text-lg mb-1">🎮</div>
+                <div>Game Host</div>
+              </Button>
+              <Button
+                variant={selectedRole === 'player' ? 'default' : 'outline'}
+                onClick={() => setSelectedRole('player')}
+                disabled={isLoading}
+                className="h-16 flex flex-col items-center justify-center"
+              >
+                <div className="text-lg mb-1">👥</div>
+                <div>Player</div>
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground text-center mt-4">
+              Currently selected: <span className="font-medium">{selectedRole === 'host' ? 'Game Host' : 'Player'}</span>
+            </p>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -181,37 +207,9 @@ export function LoginPage() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Signing in...' : 'Sign In'}
+                    {isLoading ? 'Signing in...' : `Sign In as ${selectedRole === 'host' ? 'Host' : 'Player'}`}
                   </Button>
                 </form>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Or try demo
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleDemoLogin('host')}
-                    disabled={isLoading}
-                  >
-                    🎮 Host Demo
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleDemoLogin('player')}
-                    disabled={isLoading}
-                  >
-                    👥 Player Demo
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -270,7 +268,7 @@ export function LoginPage() {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Creating Account...' : 'Create Account'}
+                    {isLoading ? 'Creating Account...' : `Create Account as ${selectedRole === 'host' ? 'Host' : 'Player'}`}
                   </Button>
                 </form>
               </CardContent>

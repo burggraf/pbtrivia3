@@ -58,11 +58,11 @@ migrate((app) => {
       "CREATE INDEX idx_used_questions_question_id ON used_questions (question_id)",
       "CREATE INDEX idx_used_questions_used_at ON used_questions (used_at)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
+    "listRule": "@request.auth.id != null && host_id = @request.auth.id",
+    "viewRule": "@request.auth.id != null && host_id = @request.auth.id",
+    "createRule": "@request.auth.id != null",
+    "updateRule": "@request.auth.id != null && host_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != null && host_id = @request.auth.id",
     "options": {}
   });
 

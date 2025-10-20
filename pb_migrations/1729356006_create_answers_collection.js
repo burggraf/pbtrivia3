@@ -110,11 +110,11 @@ migrate((app) => {
       "CREATE INDEX idx_answers_team_id ON answers (team_id)",
       "CREATE INDEX idx_answers_submitted_at ON answers (submitted_at)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
+    "listRule": "@request.auth.id != null && round_question_id.round_id.game_id.host_id = @request.auth.id",
+    "viewRule": "@request.auth.id != null && round_question_id.round_id.game_id.host_id = @request.auth.id",
+    "createRule": "@request.auth.id != null",
+    "updateRule": "@request.auth.id != null && round_question_id.round_id.game_id.host_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != null && round_question_id.round_id.game_id.host_id = @request.auth.id",
     "options": {}
   });
 

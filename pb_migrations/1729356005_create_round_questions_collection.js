@@ -127,11 +127,11 @@ migrate((app) => {
       "CREATE INDEX idx_round_questions_round_id ON round_questions (round_id)",
       "CREATE INDEX idx_round_questions_status ON round_questions (status)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
+    "listRule": "@request.auth.id != null && round_id.game_id.host_id = @request.auth.id",
+    "viewRule": "@request.auth.id != null && round_id.game_id.host_id = @request.auth.id",
+    "createRule": "@request.auth.id != null",
+    "updateRule": "@request.auth.id != null && round_id.game_id.host_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != null && round_id.game_id.host_id = @request.auth.id",
     "options": {}
   });
 

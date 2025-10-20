@@ -78,11 +78,11 @@ migrate((app) => {
       "CREATE INDEX idx_team_members_team_id ON team_members (team_id)",
       "CREATE INDEX idx_team_members_user_id ON team_members (user_id)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
+    "listRule": "@request.auth.id != null",
+    "viewRule": "@request.auth.id != null",
+    "createRule": "@request.auth.id != null",
+    "updateRule": "@request.auth.id != null && user_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != null && user_id = @request.auth.id",
     "options": {}
   });
 

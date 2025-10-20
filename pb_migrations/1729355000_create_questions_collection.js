@@ -104,8 +104,8 @@ migrate((app) => {
       "CREATE INDEX idx_difficulty ON questions (difficulty)",
       "CREATE INDEX idx_subcategory ON questions (subcategory)"
     ],
-    "listRule": "",
-    "viewRule": "",
+    "listRule": "@request.auth.id != null",
+    "viewRule": "@request.auth.id != null",
     "createRule": null,
     "updateRule": null,
     "deleteRule": null,

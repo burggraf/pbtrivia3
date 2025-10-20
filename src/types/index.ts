@@ -1,5 +1,10 @@
 // Core entity types for the Multi-User Trivia Party Application
 
+// Re-export individual type modules
+export * from './user'
+export * from './team'
+export * from './teamMember'
+
 // ============================================================================
 // 1. Users (Authentication)
 // ============================================================================
@@ -8,8 +13,11 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  created_at: string;
-  updated_at: string;
+  username: string;
+  avatar?: string;
+  verified: boolean;
+  created: string;
+  updated: string;
 }
 
 export interface UserCreateInput {
@@ -17,6 +25,7 @@ export interface UserCreateInput {
   password: string;
   passwordConfirm: string;
   name: string;
+  username: string;
 }
 
 export interface UserAuthInput {
@@ -159,10 +168,15 @@ export interface RoundQuestionWithQuestion extends RoundQuestion {
 // 6. Teams (Player Groups)
 // ============================================================================
 
+export type TeamStatus = 'forming' | 'ready' | 'playing';
+
 export interface Team {
   id: string;
   game_id: string;
   name: string;
+  team_number: number;
+  score: number;
+  status: TeamStatus;
   created_at: string;
 }
 
@@ -175,6 +189,7 @@ export interface TeamWithMembers extends Team {
 export interface TeamCreateInput {
   game_id: string;
   name: string;
+  team_number: number;
 }
 
 // ============================================================================
@@ -185,6 +200,8 @@ export interface TeamMember {
   id: string;
   team_id: string;
   user_id: string;
+  name: string;
+  is_captain: boolean;
   joined_at: string;
 }
 

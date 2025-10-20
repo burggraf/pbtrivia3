@@ -55,11 +55,11 @@ migrate((app) => {
     "indexes": [
       "CREATE INDEX idx_game_state_game_id ON game_state (game_id)"
     ],
-    "listRule": "",
-    "viewRule": "",
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
+    "listRule": "@request.auth.id != null && game_id.host_id = @request.auth.id",
+    "viewRule": "@request.auth.id != null && game_id.host_id = @request.auth.id",
+    "createRule": "@request.auth.id != null",
+    "updateRule": "@request.auth.id != null && game_id.host_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != null && game_id.host_id = @request.auth.id",
     "options": {}
   });
 
